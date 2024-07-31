@@ -52,7 +52,7 @@ async def delete_book(book_id: int, db: Annotated[Session, Depends(get_db)]):
     return crud.delete_book(book_id, db)
 
 
-@app.get("/users/{user_id}")
+@app.get("/users/{user_id}", response_model=schemas.User)
 async def read_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
     return crud.get_user(user_id, db)
 
