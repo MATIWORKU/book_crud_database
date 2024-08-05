@@ -9,8 +9,10 @@ from jwt.exceptions import InvalidTokenError
 import models
 import schemas
 import utils
+import database_postgres
 
-oauth2_scheme = OAuth2PasswordBearer(tokenUrl="login")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
 
 SECRET_KEY = "7b001efbdceef2fdf30c51a42916e2f5b2fd04124cb4d5d382a0ec813417783c"
 ALGORITHM = "HS256"
@@ -109,7 +111,7 @@ def verify_token(token: str, credential_exception):
     return token_data
 
 
-def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session):
+def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session = Depends(database_postgres.get_db)):
     credential_exception = HTTPException(
         status_code=status.HTTP_401_UNAUTHORIZED,
         detail="Could not validate credentials",
@@ -117,7 +119,7 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session)
     )
 
     token_data = verify_token(token, credential_exception)
-    user = get_user(user_id=token_data.user_id, db=db)
+    user = db.query(models.User).filter(models.User.id == token_data.user_id).first()
     if user is None:
         raise credential_exception
     return schemas.User.model_validate(user)

@@ -1,11 +1,10 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 
 import crud
-import models
 import schemas
 from database_postgres import Base, get_db, engine
 
@@ -15,7 +14,9 @@ app = FastAPI()
 
 
 @app.get("/", response_model=list[schemas.Book])
-async def read_all_book(db: Annotated[Session, Depends(get_db)]):
+async def read_all_book(
+        db: Session = Depends(get_db),
+        ):
     books = crud.get_all_books(db)
     return books
 
@@ -38,17 +39,30 @@ async def read_book(book_id: int, db: Annotated[Session, Depends(get_db)]):
 
 
 @app.post("/books")
-async def create_book(book: schemas.BookCreate, db: Annotated[Session, Depends(get_db)]):
+async def create_book(
+        book: schemas.BookCreate,
+        db: Annotated[Session, Depends(get_db)],
+        current_user: int = Depends(crud.get_current_user),
+):
     return crud.create_book(book, db)
 
 
 @app.put("/books/{book_id}")
-async def update_book(book_id: int, book: schemas.BookCreate, db: Annotated[Session, Depends(get_db)]):
+async def update_book(
+        book_id: int,
+        book: schemas.BookCreate,
+        db: Annotated[Session, Depends(get_db)],
+        current_user: int = Depends(crud.get_current_user),
+):
     return crud.update_book(book_id, book, db)
 
 
 @app.delete("/books/{book_id}")
-async def delete_book(book_id: int, db: Annotated[Session, Depends(get_db)]):
+async def delete_book(
+        book_id: int,
+        db: Annotated[Session, Depends(get_db)],
+        current_user: int = Depends(crud.get_current_user),
+):
     return crud.delete_book(book_id, db)
 
 
