@@ -1,21 +1,18 @@
 from pydantic import BaseModel, Field, EmailStr
-from typing import Annotated
+from typing import Annotated, Optional
 from datetime import datetime
 
-class UserBase(BaseModel):
-    email: EmailStr
+
+class RoleBase(BaseModel):
+    name: str
+    permissions: str
 
 
-class UserCreate(UserBase):
-    password: str
-
-
-class User(UserBase):
+class Role(RoleBase):
     id: int
-    created_at: datetime
 
     class Config:
-        from_attributes = True
+        from_attribute = True
 
 
 class BookBase(BaseModel):
@@ -28,10 +25,28 @@ class BookCreate(BookBase):
     pass
 
 
+class UserBase(BaseModel):
+    email: EmailStr
+
+
+class UserCreate(UserBase):
+    password: str
+    role_name: str
+
+
+class User(UserBase):
+    id: int
+    created_at: datetime
+    role: Optional[Role]
+
+    class Config:
+        from_attributes = True
+
+
 class Book(BookBase):
     id: int
     uploader_id: int
-    uploader: User
+    uploader: Optional[User]
 
     class Config:
         from_attributes = True
@@ -44,3 +59,7 @@ class Token(BaseModel):
 
 class TokenData(BaseModel):
     user_id: int | None = None
+
+
+Book.update_forward_refs()
+User.update_forward_refs()

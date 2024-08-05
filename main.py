@@ -34,7 +34,7 @@ async def login(db: Session = Depends(get_db), user_credentials: OAuth2PasswordR
     return schemas.Token(access_token=access_token, token_type="bearer")
 
 
-@app.get("/{book_id}", response_model=schemas.Book)
+@app.get("/books/{book_id}", response_model=schemas.Book)
 async def read_book(book_id: int, db: Annotated[Session, Depends(get_db)]):
     return crud.get_book(book_id, db)
 
@@ -54,7 +54,7 @@ async def update_book(
         book_id: int,
         book: schemas.BookCreate,
         db: Annotated[Session, Depends(get_db)],
-        current_user: int = Depends(crud.get_current_user),
+        current_user: schemas.User = Depends(crud.get_current_user),
 ):
     return crud.update_book(book_id, book, db, user_id=current_user.id)
 
@@ -63,20 +63,28 @@ async def update_book(
 async def delete_book(
         book_id: int,
         db: Annotated[Session, Depends(get_db)],
-        current_user: int = Depends(crud.get_current_user),
+        current_user: schemas.User = Depends(crud.get_current_user),
 ):
-    return crud.delete_book(book_id, db, user_id= current_user.id)
+    return crud.delete_book(book_id, db, user_id=current_user.id)
 
 
-@app.get("/users/{user_id}", response_model=schemas.User)
-async def read_user(user_id: int, db: Annotated[Session, Depends(get_db)]):
-    return crud.get_user(user_id, db)
+@app.get("/users", response_model=list[schemas.User])
+async def read_user(
+        db: Annotated[Session, Depends(get_db)],
+        current_user: schemas.User = Depends(crud.get_current_active_admin)
+):
+    return crud.get_users(db)
 
 
 @app.post("/users", response_model=schemas.User)
-async def create_user(user: schemas.UserCreate, db: Annotated[Session, Depends(get_db)]):
+async def create_user(
+        user: schemas.UserCreate,
+        db: Annotated[Session, Depends(get_db)],
+        current_user: schemas.User = Depends(crud.get_current_active_admin)):
+
     new_user = crud.get_user_by_email(db, user.email)
 
     if new_user:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
     return crud.create_user(user, db)
+
