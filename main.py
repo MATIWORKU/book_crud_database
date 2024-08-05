@@ -16,6 +16,7 @@ app = FastAPI()
 @app.get("/", response_model=list[schemas.Book])
 async def read_all_book(
         db: Session = Depends(get_db),
+        current_user: schemas.User = Depends(crud.get_current_user),
         ):
     books = crud.get_all_books(db)
     return books
@@ -39,12 +40,13 @@ async def read_book(book_id: int, db: Annotated[Session, Depends(get_db)]):
 
 
 @app.post("/books")
+# used int as the type hint for current_user
 async def create_book(
         book: schemas.BookCreate,
         db: Annotated[Session, Depends(get_db)],
-        current_user: int = Depends(crud.get_current_user),
+        current_user: schemas.User = Depends(crud.get_current_user),
 ):
-    return crud.create_book(book, db)
+    return crud.create_book(book, db, user_id=current_user.id)
 
 
 @app.put("/books/{book_id}")
@@ -54,7 +56,7 @@ async def update_book(
         db: Annotated[Session, Depends(get_db)],
         current_user: int = Depends(crud.get_current_user),
 ):
-    return crud.update_book(book_id, book, db)
+    return crud.update_book(book_id, book, db, user_id=current_user.id)
 
 
 @app.delete("/books/{book_id}")
@@ -63,7 +65,7 @@ async def delete_book(
         db: Annotated[Session, Depends(get_db)],
         current_user: int = Depends(crud.get_current_user),
 ):
-    return crud.delete_book(book_id, db)
+    return crud.delete_book(book_id, db, user_id= current_user.id)
 
 
 @app.get("/users/{user_id}", response_model=schemas.User)

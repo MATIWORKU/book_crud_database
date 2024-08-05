@@ -1,4 +1,5 @@
-from sqlalchemy import Column, Integer, String
+from sqlalchemy import Column, Integer, String, ForeignKey
+from sqlalchemy.orm import relationship
 from sqlalchemy.sql.expression import text
 from sqlalchemy.sql.sqltypes import TIMESTAMP
 from database_postgres import Base
@@ -12,7 +13,7 @@ class User(Base):
     hashed_password = Column(String, nullable=False)
     created_at = Column(TIMESTAMP(timezone=True), nullable=False, server_default=text('now()'))
 
-    # books = relationship("Book", back_populates="uploader")
+    books = relationship("Book", back_populates="uploader")
 
 
 class Book(Base):
@@ -22,9 +23,8 @@ class Book(Base):
     title = Column(String, index=True, nullable=False)
     author = Column(String, index=True, nullable=False)
     year = Column(Integer, nullable=False)
-
-    # uploaded_by = Column(Integer, ForeignKey(User.id))
+    uploader_id = Column(Integer, ForeignKey("users.id", ondelete='CASCADE'), nullable=False)
     #
-    # uploader = relationship("User", back_populates="books")
+    uploader = relationship("User", back_populates="books")
 
 

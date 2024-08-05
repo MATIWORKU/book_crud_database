@@ -2,6 +2,21 @@ from pydantic import BaseModel, Field, EmailStr
 from typing import Annotated
 from datetime import datetime
 
+class UserBase(BaseModel):
+    email: EmailStr
+
+
+class UserCreate(UserBase):
+    password: str
+
+
+class User(UserBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
+
 
 class BookBase(BaseModel):
     title: Annotated[str, Field(max_length=100)]
@@ -15,22 +30,8 @@ class BookCreate(BookBase):
 
 class Book(BookBase):
     id: int
-
-    class Config:
-        from_attributes = True
-
-
-class UserBase(BaseModel):
-    email: EmailStr
-
-
-class UserCreate(UserBase):
-    password: str
-
-
-class User(UserBase):
-    id: int
-    created_at: datetime
+    uploader_id: int
+    uploader: User
 
     class Config:
         from_attributes = True

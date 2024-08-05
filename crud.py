@@ -6,6 +6,8 @@ from fastapi.security import OAuth2PasswordBearer
 import jwt
 from sqlalchemy.orm import Session
 from jwt.exceptions import InvalidTokenError
+from sqlalchemy.sql import crud
+
 import models
 import schemas
 import utils
@@ -17,66 +19,6 @@ oauth2_scheme = OAuth2PasswordBearer(tokenUrl='login')
 SECRET_KEY = "7b001efbdceef2fdf30c51a42916e2f5b2fd04124cb4d5d382a0ec813417783c"
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
-
-
-def get_user_by_email(db: Session, email: str):
-    return db.query(models.User).filter(models.User.email == email).first()
-
-
-def get_user(user_id: int, db: Session):
-    return db.query(models.User).filter(models.User.id == user_id).first()
-
-
-def create_user(user: schemas.UserCreate, db: Session):
-    hashed_password: str = utils.hash_password(user.password)
-    db_user = models.User(email=user.email, hashed_password=hashed_password)
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    return db_user
-
-
-def get_all_books(db: Session):
-    return db.query(models.Book).all()
-
-
-def get_book(book_id: int, db: Session):
-    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
-    if db_book is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Book with id: {book_id} not found")
-    else:
-        return db.query(models.Book).filter(models.Book.id == book_id).first()
-
-
-def create_book(book: schemas.BookCreate, db: Session):
-    db_book = models.Book(**book.model_dump())
-    db.add(db_book)
-    db.commit()
-    db.refresh(db_book)
-    return f"book successfully created"
-
-
-def update_book(book_id: int, book: schemas.BookCreate, db: Session):
-    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
-    if db_book is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Book with id: {book_id} not found")
-    else:
-        db_book.title = book.title
-        db_book.author = book.author
-        db_book.year = book.year
-        db.commit()
-        db.refresh(db_book)
-        return f"book successfully updated"
-
-
-def delete_book(book_id: int, db: Session):
-    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
-    if db_book is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Book with id: {book_id} not found")
-    else:
-        db.delete(db_book)
-        db.commit()
-        return "book deleted"
 
 
 def login(db: Session, email: str, password: str):
@@ -119,7 +61,76 @@ def get_current_user(token: Annotated[str, Depends(oauth2_scheme)], db: Session 
     )
 
     token_data = verify_token(token, credential_exception)
+    # used the db session rather than the get_user functiont
     user = db.query(models.User).filter(models.User.id == token_data.user_id).first()
     if user is None:
         raise credential_exception
     return schemas.User.model_validate(user)
+
+
+def get_user_by_email(db: Session, email: str):
+    return db.query(models.User).filter(models.User.email == email).first()
+
+
+def get_user(user_id: int, db: Session):
+    return db.query(models.User).filter(models.User.id == user_id).first()
+
+
+def create_user(user: schemas.UserCreate, db: Session):
+    hashed_password: str = utils.hash_password(user.password)
+    db_user = models.User(email=user.email, hashed_password=hashed_password)
+    db.add(db_user)
+    db.commit()
+    db.refresh(db_user)
+    return db_user
+
+
+def get_all_books(db: Session):
+    # to return books to a user that were created by that user .filter(models.Book.uploader_id == user_id)
+    return db.query(models.Book).all()
+
+
+def get_book(book_id: int, db: Session):
+    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
+    if db_book is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Book with id: {book_id} not found")
+    else:
+        return db.query(models.Book).filter(models.Book.id == book_id).first()
+
+
+def create_book(book: schemas.BookCreate, db: Session, user_id: int):
+    db_book = models.Book(**book.model_dump(), uploader_id=user_id)
+    db.add(db_book)
+    db.commit()
+    db.refresh(db_book)
+    return f"book successfully created"
+
+
+def update_book(book_id: int, book: schemas.BookCreate, db: Session, user_id: int):
+    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
+    if db_book is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Book with id: {book_id} not found")
+    else:
+        if db_book.uploader_id != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail=f"You can not edit this book.")
+        db_book.title = book.title
+        db_book.author = book.author
+        db_book.year = book.year
+        db.commit()
+        db.refresh(db_book)
+        return f"book successfully updated"
+
+
+def delete_book(book_id: int, db: Session, user_id: int):
+    db_book = db.query(models.Book).filter(models.Book.id == book_id).first()
+    if db_book is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=f"Book with id: {book_id} not found")
+    else:
+        if db_book.uploader_id != user_id:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
+                                detail=f"You can not delete this book.")
+        db.delete(db_book)
+        db.commit()
+        return "book deleted"
+
